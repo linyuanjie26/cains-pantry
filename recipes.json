@@ -1,0 +1,224 @@
+{
+  "starter_pantry": [
+    "onion",
+    "garlic",
+    "eggs",
+    "pasta",
+    "rice",
+    "canned tomatoes",
+    "chickpeas",
+    "black beans",
+    "olive oil",
+    "salt",
+    "butter",
+    "bread",
+    "potato",
+    "cheese",
+    "cumin",
+    "black pepper"
+  ],
+  "recipes": [
+    {
+      "id": "simple-pancakes",
+      "title": "Simple Pancakes",
+      "tags": ["breakfast", "three-ingredients"],
+      "ingredients": ["flour", "milk", "eggs"],
+      "optional": [],
+      "steps": "Whisk flour, milk, and egg into a pourable batter. Cook small rounds in a warm pan until the surface sets, then flip. Serve warm."
+    },
+    {
+      "id": "blood-orange-pantry-stew",
+      "title": "Blood-Orange Pantry Stew",
+      "tags": [
+        "one-pot",
+        "uses-citrus"
+      ],
+      "ingredients": [
+        "onion",
+        "garlic",
+        "canned tomatoes",
+        "chickpeas",
+        "orange",
+        "cumin",
+        "olive oil",
+        "salt"
+      ],
+      "optional": [],
+      "steps": "Soften onion + garlic in oil. Add tomatoes, drained chickpeas, cumin, salt. Simmer 15 min. Squeeze in orange juice; zest on top."
+    },
+    {
+      "id": "cains-toast-hash",
+      "title": "Cain's Toast Hash",
+      "tags": [
+        "breakfast",
+        "uses-leftover-bread"
+      ],
+      "ingredients": [
+        "bread",
+        "eggs",
+        "onion",
+        "potato",
+        "butter",
+        "black pepper",
+        "salt"
+      ],
+      "optional": [],
+      "steps": "Dice stale bread and potato; crisp in butter with onion. Push aside, scramble eggs in, fold together. Heavy pepper."
+    },
+    {
+      "id": "jarred-pepper-pasta",
+      "title": "Jarred Pepper Pasta",
+      "tags": [
+        "15-min",
+        "pantry-pasta"
+      ],
+      "ingredients": [
+        "pasta",
+        "jarred roasted peppers",
+        "garlic",
+        "olive oil",
+        "chili flakes",
+        "salt"
+      ],
+      "optional": [
+        "parmesan"
+      ],
+      "steps": "Boil pasta. Warm peppers + garlic + oil + chili. Toss with pasta water. Cheese if you have it."
+    },
+    {
+      "id": "almost-empty-fridge-frittata",
+      "title": "Almost-Empty Fridge Frittata",
+      "tags": [
+        "eggs",
+        "fridge-cleanout"
+      ],
+      "ingredients": [
+        "eggs",
+        "milk",
+        "cheese",
+        "spinach",
+        "onion",
+        "salt",
+        "oil"
+      ],
+      "optional": [],
+      "steps": "Saut\u00e9 onion + greens. Whisk eggs + milk + salt, pour in, add cheese. Oven or lid until set."
+    },
+    {
+      "id": "bean-rice-survival-bowl",
+      "title": "Bean & Rice Survival Bowl",
+      "tags": [
+        "no-meat",
+        "budget"
+      ],
+      "ingredients": [
+        "rice",
+        "black beans",
+        "onion",
+        "cumin",
+        "lime",
+        "hot sauce",
+        "salt",
+        "oil"
+      ],
+      "optional": [],
+      "steps": "Cook rice. Warm beans with onion + cumin. Plate rice, beans, acid + hot sauce."
+    },
+    {
+      "id": "weeknight-broth-noodles",
+      "title": "Weeknight Broth Noodles",
+      "tags": [
+        "soup",
+        "comfort"
+      ],
+      "ingredients": [
+        "noodles",
+        "broth",
+        "garlic",
+        "soy sauce",
+        "egg",
+        "green onion"
+      ],
+      "optional": [
+        "sesame oil"
+      ],
+      "steps": "Simmer broth + garlic + soy. Cook noodles in it. Soft-boil or drop in egg. Scallions + sesame if present."
+    },
+    {
+      "id": "sheet-pan-root-roast",
+      "title": "Sheet-Pan Root Roast",
+      "tags": [
+        "sheet-pan",
+        "meal-prep"
+      ],
+      "ingredients": [
+        "potato",
+        "carrot",
+        "onion",
+        "olive oil",
+        "paprika",
+        "salt",
+        "garlic"
+      ],
+      "optional": [],
+      "steps": "Chunk veg, toss with oil + spices, roast hot until edges char. Eat as-is or over rice."
+    },
+    {
+      "id": "pantry-tuna-melt-cups",
+      "title": "Pantry Tuna Melt Cups",
+      "tags": [
+        "sandwich-adjacent",
+        "lunch"
+      ],
+      "ingredients": [
+        "canned tuna",
+        "mayonnaise",
+        "bread",
+        "cheese",
+        "pickle",
+        "black pepper"
+      ],
+      "optional": [],
+      "steps": "Mix tuna + mayo + pickle + pepper. Pile on bread, top cheese, broil until bubbling."
+    },
+    {
+      "id": "lentil-bolognese",
+      "title": "Lentil Bolognese",
+      "tags": [
+        "pasta",
+        "no-meat"
+      ],
+      "ingredients": [
+        "lentils",
+        "onion",
+        "garlic",
+        "canned tomatoes",
+        "pasta",
+        "oregano",
+        "olive oil",
+        "salt"
+      ],
+      "optional": [],
+      "steps": "Soften onion + garlic. Add lentils + tomatoes + oregano; simmer until thick. Serve over pasta."
+    },
+    {
+      "id": "midnight-chickpea-mash",
+      "title": "Midnight Chickpea Mash",
+      "tags": [
+        "snack",
+        "no-cook-ish"
+      ],
+      "ingredients": [
+        "chickpeas",
+        "lemon",
+        "garlic",
+        "olive oil",
+        "salt",
+        "paprika",
+        "bread"
+      ],
+      "optional": [],
+      "steps": "Mash chickpeas with oil, acid, grated garlic, salt. Dust paprika. Scoop with bread."
+    }
+  ]
+}

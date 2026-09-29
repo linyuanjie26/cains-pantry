@@ -1,0 +1,6 @@
+-- The app does not use Supabase Auth.
+-- Run these two files, in order, in the Supabase SQL editor:
+--   supabase_profiles.sql
+--   supabase_pantry.sql
+--
+-- Both use permissive anon policies. That is demo-grade only.

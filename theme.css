@@ -1,0 +1,187 @@
+/* Cain's Pantry — original theme. No third-party game assets. */
+:root {
+  --cp-cream: #f4efe6;
+  --cp-paper: #ebe4d6;
+  --cp-charcoal: #2a2420;
+  --cp-muted: #6b6258;
+  --cp-accent: #c45c26;      /* blood-orange — Ready / primary */
+  --cp-almost: #c4922a;      /* amber */
+  --cp-need: #7a7268;        /* muted stone */
+  --cp-chip: #fffaf3;
+  --cp-border: #d4cbb8;
+}
+
+/* App chrome */
+.stApp {
+  background: var(--cp-cream) !important;
+  color: var(--cp-charcoal);
+}
+
+.block-container {
+  max-width: 1100px;
+  /* Clears Streamlit's top bar so the wordmark is not clipped. */
+  padding-top: 5rem;
+  padding-bottom: 3rem;
+}
+
+h1, h2, h3, .cp-wordmark {
+  color: var(--cp-charcoal) !important;
+  letter-spacing: 0.02em;
+}
+
+.cp-wordmark {
+  font-size: 1.85rem;
+  font-weight: 700;
+  margin-bottom: 0;
+  line-height: 1.15;
+}
+
+.cp-subtitle {
+  color: var(--cp-muted);
+  font-size: 0.95rem;
+  margin-top: 0.15rem;
+  margin-bottom: 1.1rem;
+}
+
+/* Pantry chips */
+.cp-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.cp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--cp-chip);
+  border: 1px solid var(--cp-border);
+  color: var(--cp-charcoal);
+  border-radius: 999px;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.cp-chip button, .cp-chip .cp-x {
+  border: none;
+  background: transparent;
+  color: var(--cp-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+}
+
+/* Status badges */
+.cp-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.cp-badge-ready { background: var(--cp-accent); }
+.cp-badge-almost { background: var(--cp-almost); }
+.cp-badge-need { background: var(--cp-need); }
+
+/* Recipe cards */
+.cp-card {
+  background: var(--cp-paper);
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  padding: 0.85rem 1rem 0.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.cp-card-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 0;
+  color: var(--cp-charcoal);
+}
+
+.cp-meta {
+  color: var(--cp-muted);
+  font-size: 0.85rem;
+  margin-top: 0.28rem;
+}
+
+.cp-missing-chip {
+  display: inline-block;
+  background: #f0e6d8;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  margin: 0.15rem 0.2rem 0.15rem 0;
+  font-size: 0.8rem;
+  color: var(--cp-charcoal);
+}
+
+.cp-section-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin: 1rem 0 0.45rem;
+  color: var(--cp-charcoal);
+}
+
+details.cp-cook {
+  margin: 0.1rem 0 0.75rem;
+  color: var(--cp-charcoal);
+}
+
+details.cp-cook summary {
+  cursor: pointer;
+  color: var(--cp-muted);
+  font-size: 0.9rem;
+}
+
+/* Hide Streamlit's keyboard hint under text inputs (focus shows
+   "Press Enter to submit form"). Form Enter-to-add still works;
+   only the chrome label is hidden. */
+[data-testid="InputInstructions"],
+div[data-testid="InputInstructions"],
+.stTextInput [data-testid="InputInstructions"],
+form [data-testid="InputInstructions"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  width: 0 !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+
+/* Pantry Add button: never stack letters vertically in a tight column */
+form[data-testid="stForm"] div[data-testid="stColumn"]:last-child button,
+form[data-testid="stForm"] button[kind="primaryFormSubmit"],
+form[data-testid="stForm"] button[data-testid="baseButton-primaryFormSubmit"] {
+  white-space: nowrap !important;
+  min-width: 4.75rem !important;
+  letter-spacing: normal !important;
+  writing-mode: horizontal-tb !important;
+}
+
+/* Soften default Streamlit chrome */
+div[data-testid="stSidebar"] {
+  background: var(--cp-paper);
+}
+
+div[data-testid="stAlert"] {
+  background: var(--cp-chip);
+  color: var(--cp-charcoal);
+  border: 1px solid var(--cp-border);
+}
+
+div[data-testid="stExpander"] {
+  background: transparent;
+  border: none;
+}
