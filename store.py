@@ -1,8 +1,9 @@
-"""Pantry persistence.
+"""Pantry and shopping-list persistence.
 
 Session state is always the list the UI reads. When Streamlit secrets include
-SUPABASE_URL and SUPABASE_ANON_KEY, sign-in loads and saves pantry_items.
-Missing secrets leave login optional and keep the current session pantry.
+SUPABASE_URL and SUPABASE_ANON_KEY, sign-in loads and saves pantry_items and
+shopping_list_items. Missing secrets leave login optional and keep both lists
+in the current browser session.
 """
 
 from __future__ import annotations
@@ -91,9 +92,10 @@ def clear() -> None:
 
 
 def shopping_list() -> list[str]:
-    """Session-only buy list. Not written to Supabase."""
+    """Buy list. Syncs to shopping_list_items when signed in with secrets."""
     if "shopping_list" not in st.session_state:
         st.session_state.shopping_list = []
+        _hydrate_shopping_once()
     return st.session_state.shopping_list
 
 
@@ -113,6 +115,7 @@ def add_to_shopping_list(raw: str | list[str]) -> None:
             continue
         items.append(item)
         added.append(item)
+        _remote_insert_shopping(item)
 
     if added and already:
         st.session_state.shop_notice = (
@@ -130,12 +133,14 @@ def remove_from_shopping_list(item: str, *, quiet: bool = False) -> None:
     st.session_state.shopping_list = [
         name for name in shopping_list() if name.casefold() != key
     ]
+    _remote_delete_shopping(item)
     if not quiet:
         st.session_state.shop_notice = ("info", cp.SHOP_REMOVED.format(item=item))
 
 
 def clear_shopping_list() -> None:
     st.session_state.shopping_list = []
+    _remote_clear_shopping()
     st.session_state.shop_notice = ("info", cp.SHOP_CLEARED)
 
 
@@ -182,6 +187,7 @@ def sign_in(email: str, password: str) -> str | None:
         return message or "Email or password does not match."
     _remember(user)
     _adopt_remote_pantry()
+    _adopt_remote_shopping()
     return None
 
 
@@ -200,6 +206,7 @@ def sign_up(email: str, password: str) -> str | None:
         return message or "Could not create the account."
     _remember(user)
     _adopt_remote_pantry()
+    _adopt_remote_shopping()
     return None
 
 
@@ -317,6 +324,82 @@ def _remote_clear() -> None:
         db.clear_pantry(user_id)
     except Exception:
         st.session_state.notice = ("warn", "Cleared here. Cloud pantry did not update.")
+
+
+def _hydrate_shopping_once() -> None:
+    if not signed_in_email():
+        return
+    remote = _fetch_shopping_names()
+    if remote is not None:
+        st.session_state.shopping_list = remote
+
+
+def _adopt_remote_shopping() -> None:
+    remote = _fetch_shopping_names()
+    local = list(st.session_state.get("shopping_list") or [])
+    if remote:
+        st.session_state.shopping_list = remote
+        return
+    st.session_state.shopping_list = local
+    for name in local:
+        _remote_insert_shopping(name)
+
+
+def _fetch_shopping_names() -> list[str] | None:
+    db = _db()
+    user_id = _user_id()
+    if db is None or not user_id:
+        return None
+    try:
+        return db.list_shopping(user_id)
+    except Exception as exc:
+        st.session_state.shop_notice = ("warn", _short_error(exc))
+        return None
+
+
+def _remote_insert_shopping(name: str) -> None:
+    db = _db()
+    user_id = _user_id()
+    if db is None or not user_id:
+        return
+    try:
+        db.add_shopping(user_id, name)
+    except Exception as exc:
+        text = str(exc).lower()
+        if "duplicate" in text or "23505" in text:
+            return
+        st.session_state.shop_notice = (
+            "warn",
+            "Saved in this session. Cloud shopping list did not update.",
+        )
+
+
+def _remote_delete_shopping(name: str) -> None:
+    db = _db()
+    user_id = _user_id()
+    if db is None or not user_id:
+        return
+    try:
+        db.remove_shopping(user_id, name)
+    except Exception:
+        st.session_state.shop_notice = (
+            "warn",
+            "Removed here. Cloud shopping list did not update.",
+        )
+
+
+def _remote_clear_shopping() -> None:
+    db = _db()
+    user_id = _user_id()
+    if db is None or not user_id:
+        return
+    try:
+        db.clear_shopping(user_id)
+    except Exception:
+        st.session_state.shop_notice = (
+            "warn",
+            "Cleared here. Cloud shopping list did not update.",
+        )
 
 
 def _short_error(exc: Exception) -> str:

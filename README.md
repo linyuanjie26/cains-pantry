@@ -8,7 +8,7 @@ Branding is original: a text wordmark, cream paper, charcoal type, and one blood
 
 ## Run locally
 
-No API keys. With no Supabase secrets, the pantry stays in the browser session.
+No API keys. With no Supabase secrets, the pantry and shopping list stay in the browser session.
 
 ```bash
 python3 -m venv .venv
@@ -45,10 +45,11 @@ That prints the same ranking from the starter pantry. The first line should be R
 | `cains_copy.py` | Title Case labels. Not named `copy.py`, so it does not shadow the Python stdlib. |
 | `theme.css` | Cream, charcoal, and blood-orange. |
 | `ui.py` | Header, pantry chips, recipe cards, Add From Web. |
-| `store.py` | Session pantry and shopping list. Pantry syncs to Supabase after login. The shopping list stays in the browser session. |
-| `src/db.py` | PostgREST signup, login, and pantry CRUD. |
+| `store.py` | Session pantry and shopping list. Both sync to Supabase after login; session-only when logged out or secrets are missing. |
+| `src/db.py` | PostgREST signup, login, pantry CRUD, and shopping-list CRUD. |
 | `supabase_profiles.sql` | `profiles` (email + bcrypt hash). Demo anon policy. |
 | `supabase_pantry.sql` | `pantry_items` (user_id, name, created_at). Demo anon policy. |
+| `supabase_shopping.sql` | `shopping_list_items` (same shape as pantry). Demo anon policy. |
 | `tests/` | Ranking rules and the secrets gate. |
 
 ```bash
@@ -57,12 +58,13 @@ python3 -m unittest discover -s tests -t .
 
 ## Sign-in and deploy
 
-Login is optional. With no secrets file, **Account** says so and the pantry stays in the browser session.
+Login is optional. With no secrets file, **Account** says so and the pantry and shopping list stay in the browser session.
 
-To save a pantry per person, create a Supabase project and run these in the SQL editor, in order:
+To save a pantry and shopping list per person, create a Supabase project and run these in the SQL editor, in order:
 
 1. `supabase_profiles.sql`
 2. `supabase_pantry.sql`
+3. `supabase_shopping.sql`
 
 The policies are demo-grade: the anon key can read and write every row, including password hashes. Do not use them for real personal accounts.
 
@@ -73,22 +75,22 @@ SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co"
 SUPABASE_ANON_KEY = "YOUR_ANON_KEY"
 ```
 
-Open **Account**, choose **Create Account**, then add ingredients. They are stored on `pantry_items` for that profile and loaded again on the next **Sign In**.
+Open **Account**, choose **Create Account**, then add ingredients. Pantry rows land on `pantry_items` and shopping rows on `shopping_list_items` for that profile; both load again on the next **Sign In**. Logged out (or with no secrets), both lists stay session-only.
 
 ### Streamlit Cloud
 
 1. Push this repo and open [share.streamlit.io](https://share.streamlit.io).
 2. Create an app from this repo, branch `main`, main file `app.py`.
 3. In the app settings, open **Secrets** and paste the same `SUPABASE_URL` and `SUPABASE_ANON_KEY` block. Use your project's URL and anon key.
-4. Deploy. The cream, charcoal, and blood-orange UI is unchanged. With secrets missing, Cloud still runs the local-style session pantry.
+4. Deploy. The cream, charcoal, and blood-orange UI is unchanged. With secrets missing, Cloud still runs the local-style session pantry and shopping list.
 
 ## Roadmap
 
-**Done in this app.** Session pantry, alias matching, themed Ready / Almost / Need More sections, an optional Supabase profile plus `pantry_items` table, free web recipes (page URL via `recipe-scrapers`, plus TheMealDB search), and a session shopping list.
+**Done in this app.** Session pantry, alias matching, themed Ready / Almost / Need More sections, an optional Supabase profile plus `pantry_items` and `shopping_list_items`, free web recipes (page URL via `recipe-scrapers`, plus TheMealDB search), and a shopping list that syncs when signed in.
 
 ## Shopping list
 
-**Shopping List** sits under the pantry. It is not saved to Supabase.
+**Shopping List** sits under the pantry. When you are signed in with Supabase secrets, it syncs to `shopping_list_items`. Logged out or with no secrets, it stays in the browser session.
 
 - Type ingredients the same way as the pantry (`lime, flour`). Commas split. Repeats are ignored by case.
 - On an **Almost** or **Need More** card, **Add Missing To List** adds that recipe's required gaps. Optional ingredients stay off the list.

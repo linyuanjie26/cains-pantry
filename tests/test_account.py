@@ -14,6 +14,7 @@ _APP = Path(__file__).resolve().parents[1] / "app.py"
 class Mem:
     def __init__(self) -> None:
         self.items: list[str] = []
+        self.shopping: list[str] = []
         self.created: tuple[str, str] | None = None
 
     def signup(self, email: str, password: str):
@@ -39,6 +40,19 @@ class Mem:
 
     def clear_pantry(self, user_id: str) -> None:
         self.items.clear()
+
+    def list_shopping(self, user_id: str) -> list[str]:
+        return list(self.shopping)
+
+    def add_shopping(self, user_id: str, name: str) -> None:
+        if name not in self.shopping:
+            self.shopping.append(name)
+
+    def remove_shopping(self, user_id: str, name: str) -> None:
+        self.shopping = [item for item in self.shopping if item != name]
+
+    def clear_shopping(self, user_id: str) -> None:
+        self.shopping.clear()
 
 
 class AccountFlowTests(unittest.TestCase):
@@ -82,6 +96,22 @@ class AccountFlowTests(unittest.TestCase):
             app.button(key="FormSubmitter:account_form-Sign In").click().run()
             self.assertEqual(mem.items, ["Butter"])
             self.assertEqual(list(app.session_state["pantry"]), ["Butter"])
+
+            app.text_input(key="shopping_input").set_value("Lime, Flour")
+            app.button(key="FormSubmitter:add_shopping_form-Add").click().run()
+            self.assertEqual(mem.shopping, ["Lime", "Flour"])
+
+            app.button(key="got-0-Lime").click().run()
+            self.assertNotIn("Lime", mem.shopping)
+            self.assertIn("Lime", mem.items)
+            self.assertIn("Lime", list(app.session_state["pantry"]))
+
+            app.button(key="sign_out").click().run()
+            mem.shopping = ["Garlic"]
+            app.text_input(key="account_email").set_value("cook@example.com")
+            app.text_input(key="account_password").set_value("secret1")
+            app.button(key="FormSubmitter:account_form-Sign In").click().run()
+            self.assertEqual(list(app.session_state["shopping_list"]), ["Garlic"])
 
 
 if __name__ == "__main__":

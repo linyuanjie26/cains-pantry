@@ -1,10 +1,12 @@
-"""Supabase PostgREST access for profiles and pantry items.
+"""Supabase PostgREST access for profiles, pantry, and shopping list.
 
 Passwords are bcrypt hashes on `profiles`. The anon key is enough for the
-demo policies in supabase_profiles.sql and supabase_pantry.sql. Those
-policies are permissive on purpose: do not use them for real accounts.
+demo policies in supabase_profiles.sql, supabase_pantry.sql, and
+supabase_shopping.sql. Those policies are permissive on purpose: do not use
+them for real accounts.
 
-When secrets are missing, callers should keep the pantry in session state.
+When secrets are missing, callers should keep pantry and shopping list in
+session state.
 """
 
 from __future__ import annotations
@@ -124,6 +126,29 @@ class PantryDB:
 
     def clear_pantry(self, user_id: str) -> None:
         self._delete("pantry_items", {"user_id": f"eq.{user_id}"})
+
+    def list_shopping(self, user_id: str) -> list[str]:
+        rows = self._get(
+            "shopping_list_items",
+            {
+                "user_id": f"eq.{user_id}",
+                "select": "name",
+                "order": "created_at.asc",
+            },
+        )
+        return [str(row["name"]) for row in rows]
+
+    def add_shopping(self, user_id: str, name: str) -> None:
+        self._post("shopping_list_items", {"user_id": user_id, "name": name})
+
+    def remove_shopping(self, user_id: str, name: str) -> None:
+        self._delete(
+            "shopping_list_items",
+            {"user_id": f"eq.{user_id}", "name": f"eq.{name}"},
+        )
+
+    def clear_shopping(self, user_id: str) -> None:
+        self._delete("shopping_list_items", {"user_id": f"eq.{user_id}"})
 
     def _get(self, table: str, params: dict[str, str]) -> list[dict[str, Any]]:
         response = self.session.get(
