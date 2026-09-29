@@ -12,8 +12,9 @@ from typing import Callable
 import streamlit as st
 
 import cains_copy as cp
-from matching import ALMOST, NEED_MORE, READY, MatchResult
+from matching import ALMOST, NEED_MORE, READY, MatchResult, Recipe
 import store
+from web_recipes import WebRecipeError, import_url, recipe_record, search_meals
 
 _CSS_PATH = Path(__file__).with_name("theme.css")
 _BADGE_CLASS = {
@@ -24,13 +25,13 @@ _BADGE_CLASS = {
 
 
 def inject_theme() -> None:
+    """Put theme.css in the document. st.html keeps a style-only block out of the layout."""
     css = _CSS_PATH.read_text(encoding="utf-8")
-    # st.html keeps <style> in the document more reliably than markdown.
-    block = f"<style>{css}</style>"
+    style = f"<style>{css}</style>"
     if hasattr(st, "html"):
-        st.html(block)
-    else:
-        st.markdown(block, unsafe_allow_html=True)
+        st.html(style)
+        return
+    st.markdown(style, unsafe_allow_html=True)
 
 
 def render_header() -> None:
@@ -92,8 +93,6 @@ def render_pantry_panel() -> list[str]:
     st.subheader(cp.PANTRY_HEADER)
 
     with st.form("add_pantry_form", clear_on_submit=True):
-        # Keep Add wide enough that the label stays horizontal in the
-        # narrow left column (a 4:1 split was squeezing letters vertical).
         field, action = st.columns([3, 1.2], gap="small")
         with field:
             new_item = st.text_input(
@@ -156,6 +155,71 @@ def render_pantry_panel() -> list[str]:
     return store.pantry()
 
 
+def render_shopping_panel() -> None:
+    """Buy list under the pantry. Session only; Got It moves a row into the pantry."""
+    items = store.shopping_list()
+    st.subheader(cp.SHOP_HEADER)
+
+    with st.form("add_shopping_form", clear_on_submit=True):
+        field, action = st.columns([3, 1.2], gap="small")
+        with field:
+            new_item = st.text_input(
+                cp.SHOP_HEADER,
+                placeholder=cp.SHOP_PLACEHOLDER,
+                label_visibility="collapsed",
+                key="shopping_input",
+            )
+        with action:
+            submitted = st.form_submit_button(
+                cp.ADD_BUTTON,
+                use_container_width=True,
+                type="primary",
+            )
+        if submitted:
+            store.add_to_shopping_list(new_item)
+
+    notice = st.session_state.pop("shop_notice", None)
+    if notice:
+        level, text = notice
+        if level == "ok":
+            st.success(text)
+        elif level == "warn":
+            st.warning(text)
+        else:
+            st.info(text)
+
+    if not items:
+        st.info(f"**{cp.SHOP_EMPTY}**  \n{cp.SHOP_EMPTY_HINT}")
+    else:
+        for index, item in enumerate(list(items)):
+            label, bought, remove = st.columns([3.2, 1.7, 0.6])
+            label.markdown(
+                f'<div class="cp-chip">{html.escape(item)}</div>',
+                unsafe_allow_html=True,
+            )
+            slug = "".join(ch if ch.isalnum() else "-" for ch in item)[:32]
+            if bought.button(cp.SHOP_GOT_IT, key=f"got-{index}-{slug}"):
+                store.mark_bought(item)
+                st.rerun()
+            if remove.button("×", key=f"shop-rm-{index}-{slug}", help=f"Remove {item}"):
+                store.remove_from_shopping_list(item)
+                st.rerun()
+
+        if st.button(cp.SHOP_CLEAR, key="clear_shopping"):
+            st.session_state.confirm_clear_shop = True
+            st.rerun()
+        if st.session_state.get("confirm_clear_shop"):
+            st.warning(cp.SHOP_CLEAR_CONFIRM)
+            yes, no = st.columns(2)
+            if yes.button(cp.CONFIRM_CLEAR, key="confirm_clear_shop_yes"):
+                store.clear_shopping_list()
+                st.session_state.confirm_clear_shop = False
+                st.rerun()
+            if no.button(cp.CANCEL, key="confirm_clear_shop_no"):
+                st.session_state.confirm_clear_shop = False
+                st.rerun()
+
+
 def render_recipe_card(match: MatchResult, *, nest_steps: bool = False) -> None:
     recipe = match.recipe
     have_n, total = match.on_hand_count
@@ -193,6 +257,14 @@ def render_recipe_card(match: MatchResult, *, nest_steps: bool = False) -> None:
         """,
         unsafe_allow_html=True,
     )
+    if match.status != READY and match.missing:
+        if st.button(
+            cp.SHOP_ADD_MISSING,
+            key=f"miss-{recipe.id}",
+            use_container_width=True,
+        ):
+            store.add_to_shopping_list(list(match.missing))
+            st.rerun()
     if recipe.steps:
         # Streamlit expanders cannot nest. Need More lives in one expander,
         # so its steps use a plain disclosure instead of a second expander.
@@ -203,6 +275,94 @@ def render_recipe_card(match: MatchResult, *, nest_steps: bool = False) -> None:
                 st.write(recipe.steps)
                 if recipe.tags:
                     st.caption(" · ".join(tag.replace("-", " ").title() for tag in recipe.tags))
+
+
+def render_web_import() -> None:
+    """URL import and TheMealDB search. Recipes stay in this browser session."""
+    with st.expander(cp.WEB_HEADER, expanded=False):
+        st.caption(cp.WEB_HINT)
+        with st.form("web_url_form", clear_on_submit=False):
+            url_col, import_col = st.columns([3, 1.5], gap="small")
+            with url_col:
+                url = st.text_input(
+                    cp.WEB_URL_LABEL,
+                    placeholder=cp.WEB_URL_PLACEHOLDER,
+                    key="web_url",
+                )
+            with import_col:
+                do_import = st.form_submit_button(cp.WEB_IMPORT, type="primary", use_container_width=True)
+        if do_import:
+            _accept_web(lambda: import_url(url))
+
+        with st.form("web_search_form", clear_on_submit=False):
+            query_col, search_col = st.columns([3, 1.5], gap="small")
+            with query_col:
+                query = st.text_input(
+                    cp.WEB_SEARCH_LABEL,
+                    placeholder=cp.WEB_SEARCH_PLACEHOLDER,
+                    key="web_query",
+                )
+            with search_col:
+                do_search = st.form_submit_button(cp.WEB_SEARCH, type="primary", use_container_width=True)
+        if do_search:
+            try:
+                hits = search_meals(query)
+            except WebRecipeError as exc:
+                st.session_state.web_notice = ("warn", str(exc))
+                st.session_state.web_hits = []
+            else:
+                st.session_state.web_hits = [recipe_record(hit) for hit in hits]
+                if not hits:
+                    st.session_state.web_notice = ("info", "No dishes found for that name.")
+            st.rerun()
+
+        notice = st.session_state.pop("web_notice", None)
+        if notice:
+            level, text = notice
+            if level == "ok":
+                st.success(text)
+            elif level == "warn":
+                st.warning(text)
+            else:
+                st.info(text)
+
+        for hit in st.session_state.get("web_hits") or []:
+            if st.button(f"Add {hit['title']}", key=f"web-add-{hit['id']}", use_container_width=True):
+                _remember_web(Recipe(
+                    id=hit["id"],
+                    title=hit["title"],
+                    ingredients=tuple(hit["ingredients"]),
+                    optional=tuple(hit.get("optional") or ()),
+                    tags=tuple(hit.get("tags") or ()),
+                    steps=hit.get("steps") or "",
+                ))
+                st.rerun()
+
+
+def _accept_web(load: Callable[[], Recipe]) -> None:
+    try:
+        recipe = load()
+    except WebRecipeError as exc:
+        st.session_state.web_notice = ("warn", str(exc))
+    else:
+        _remember_web(recipe)
+    st.rerun()
+
+
+def _remember_web(recipe: Recipe) -> None:
+    rows = list(st.session_state.get("web_recipes") or [])
+    record = recipe_record(recipe)
+    replaced = False
+    for index, row in enumerate(rows):
+        if row.get("id") == record["id"]:
+            rows[index] = record
+            replaced = True
+            break
+    if not replaced:
+        rows.append(record)
+    st.session_state.web_recipes = rows
+    template = cp.WEB_UPDATED if replaced else cp.WEB_ADDED
+    st.session_state.web_notice = ("ok", template.format(title=recipe.title))
 
 
 def render_results(groups: dict[str, list]) -> None:

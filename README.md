@@ -25,6 +25,7 @@ The pantry starts empty. Chips keep the casing you type. Two checks:
 
 1. **Try Eggs, Milk, And Flour**, or add `eggs, milk, flour`. **Simple Pancakes** should sit in **Ready** at the top. Open **Cook This** for the method.
 2. For the full starter bag, paste `starter_pantry` from `recipes.json` (`onion, garlic, eggs, pasta, rice, canned tomatoes, chickpeas, black beans, olive oil, salt, butter, bread, potato, cheese, cumin, black pepper`). **Cain's Toast Hash** is **Ready**. Other recipes land in **Almost** or a collapsed **Need More**.
+3. Open **Add From Web**. Search `Arrabiata` and add **Spicy Arrabiata Penne**, or paste a recipe page URL and choose **Import**. The new dish joins the same Ready / Almost / Need More list. No API key. Imported recipes stay in this browser session.
 
 ```bash
 python3 matching.py
@@ -39,11 +40,12 @@ That prints the same ranking from the starter pantry. The first line should be R
 | `app.py` | Streamlit entry. Two columns: pantry, then ranked recipes. |
 | `matching.py` | Alias map and Ready / Almost / Need More. `python3 matching.py` prints the starter ranking. |
 | `recipes.json` | Seed recipes plus `starter_pantry`, including Simple Pancakes. |
+| `web_recipes.py` | Import a recipe URL, or search TheMealDB. Same recipe shape as the seed book. |
 | `docs/matching-spec.md` | Rank rules. |
 | `cains_copy.py` | Title Case labels. Not named `copy.py`, so it does not shadow the Python stdlib. |
 | `theme.css` | Cream, charcoal, and blood-orange. |
-| `ui.py` | Header, pantry chips, recipe cards. |
-| `store.py` | Session pantry. Syncs to Supabase after login. |
+| `ui.py` | Header, pantry chips, recipe cards, Add From Web. |
+| `store.py` | Session pantry and shopping list. Pantry syncs to Supabase after login. The shopping list stays in the browser session. |
 | `src/db.py` | PostgREST signup, login, and pantry CRUD. |
 | `supabase_profiles.sql` | `profiles` (email + bcrypt hash). Demo anon policy. |
 | `supabase_pantry.sql` | `pantry_items` (user_id, name, created_at). Demo anon policy. |
@@ -82,8 +84,21 @@ Open **Account**, choose **Create Account**, then add ingredients. They are stor
 
 ## Roadmap
 
-**Done in this app.** Session pantry, alias matching, themed Ready / Almost / Need More sections, and an optional Supabase profile plus `pantry_items` table.
+**Done in this app.** Session pantry, alias matching, themed Ready / Almost / Need More sections, an optional Supabase profile plus `pantry_items` table, free web recipes (page URL via `recipe-scrapers`, plus TheMealDB search), and a session shopping list.
 
-**Shopping list.** Turn Almost recipes into one deduped list of missing ingredients.
+## Shopping list
 
-**Recipe API.** Optional cookbook source behind the same recipe shape. `recipes.json` stays the offline default. Keys would live in secrets, never in the repo.
+**Shopping List** sits under the pantry. It is not saved to Supabase.
+
+- Type ingredients the same way as the pantry (`lime, flour`). Commas split. Repeats are ignored by case.
+- On an **Almost** or **Need More** card, **Add Missing To List** adds that recipe's required gaps. Optional ingredients stay off the list.
+- **Got It** removes the row and adds it to the pantry. **×** removes it only. **Clear List** empties the list after a confirm.
+
+## Add from the web
+
+**Add From Web** sits above the ranked list.
+
+- **Recipe URL** then **Import**. The page is read with `recipe-scrapers`, and schema.org Recipe data is the fallback. A bad link, an unsupported page, or a network failure shows a short message.
+- **Search Dishes** then **Search**. That calls TheMealDB (`themealdb.com`) with no API key. Pick a result to add it.
+
+Ingredient lines lose amounts and a few prep words, then fold through the same aliases as the pantry (`olive oil`, `chili flakes`, `parmesan`, `canned tomatoes`). `recipes.json` is unchanged. Imported dishes are kept in the browser session for this version.

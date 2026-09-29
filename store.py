@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+import cains_copy as cp
 from src.db import PantryDB, get_config
 
 _USER_KEY = "cp_user"
@@ -87,6 +88,83 @@ def clear() -> None:
     st.session_state.pantry = []
     _remote_clear()
     st.session_state.notice = ("info", "Pantry cleared.")
+
+
+def shopping_list() -> list[str]:
+    """Session-only buy list. Not written to Supabase."""
+    if "shopping_list" not in st.session_state:
+        st.session_state.shopping_list = []
+    return st.session_state.shopping_list
+
+
+def add_to_shopping_list(raw: str | list[str]) -> None:
+    """Add names, splitting commas. Casefold duplicates stay out."""
+    incoming = _shopping_names(raw)
+    if not incoming:
+        st.session_state.shop_notice = ("warn", cp.SHOP_NEED_NAME)
+        return
+
+    items = shopping_list()
+    added: list[str] = []
+    already: list[str] = []
+    for item in incoming:
+        if any(existing.casefold() == item.casefold() for existing in items):
+            already.append(item)
+            continue
+        items.append(item)
+        added.append(item)
+
+    if added and already:
+        st.session_state.shop_notice = (
+            "ok",
+            cp.SHOP_ADDED_SOME.format(added=", ".join(added), already=", ".join(already)),
+        )
+    elif added:
+        st.session_state.shop_notice = ("ok", cp.SHOP_ADDED.format(items=", ".join(added)))
+    else:
+        st.session_state.shop_notice = ("info", cp.SHOP_ALREADY.format(items=", ".join(already)))
+
+
+def remove_from_shopping_list(item: str, *, quiet: bool = False) -> None:
+    key = item.casefold()
+    st.session_state.shopping_list = [
+        name for name in shopping_list() if name.casefold() != key
+    ]
+    if not quiet:
+        st.session_state.shop_notice = ("info", cp.SHOP_REMOVED.format(item=item))
+
+
+def clear_shopping_list() -> None:
+    st.session_state.shopping_list = []
+    st.session_state.shop_notice = ("info", cp.SHOP_CLEARED)
+
+
+def mark_bought(item: str) -> None:
+    """Drop the row from the list and put that ingredient in the pantry."""
+    name = " ".join((item or "").split())
+    if not name:
+        return
+    remove_from_shopping_list(name, quiet=True)
+    items = pantry()
+    if not any(existing.casefold() == name.casefold() for existing in items):
+        items.append(name)
+        _remote_insert(name)
+    st.session_state.shop_notice = ("ok", cp.SHOP_BOUGHT.format(item=name))
+
+
+def _shopping_names(raw: str | list[str]) -> list[str]:
+    if isinstance(raw, str):
+        return split_pantry_entry(raw)
+    found: list[str] = []
+    seen: set[str] = set()
+    for part in raw:
+        for item in split_pantry_entry(str(part)):
+            key = item.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(item)
+    return found
 
 
 def sign_in(email: str, password: str) -> str | None:

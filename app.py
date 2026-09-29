@@ -12,7 +12,15 @@ from pathlib import Path
 import streamlit as st
 
 from matching import Recipe, group_by_status, match_all
-from ui import page_shell, render_account, render_pantry_panel, render_results
+from ui import (
+    page_shell,
+    render_account,
+    render_pantry_panel,
+    render_results,
+    render_shopping_panel,
+    render_web_import,
+)
+from web_recipes import recipes_from_records
 
 _RECIPE_PATH = Path(__file__).resolve().with_name("recipes.json")
 
@@ -52,11 +60,14 @@ def main() -> None:
             st.caption(str(exc))
             return
 
+        imported = recipes_from_records(st.session_state.get("web_recipes"))
         left, right = st.columns([1, 2], gap="large")
         with left:
             pantry = render_pantry_panel()
+            render_shopping_panel()
         with right:
-            grouped = group_by_status(match_all(recipes, pantry))
+            render_web_import()
+            grouped = group_by_status(match_all([*recipes, *imported], pantry))
             render_results(grouped)
 
     page_shell(body)
