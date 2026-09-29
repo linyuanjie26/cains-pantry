@@ -1,7 +1,7 @@
 """Cain's Pantry — Streamlit entrypoint.
 
 Loads recipes.json, then hands the session pantry to matching.match_all.
-Possy's layout renders the Ready / Almost / Need More groups.
+Find In Book filters that ranked list before the Ready / Almost / Need More groups render.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ from pathlib import Path
 
 import streamlit as st
 
+import cains_copy as cp
+from book_filter import filter_matches
 from matching import Recipe, group_by_status, match_all
 from ui import (
     page_shell,
@@ -67,8 +69,17 @@ def main() -> None:
             render_shopping_panel()
         with right:
             render_web_import()
-            grouped = group_by_status(match_all([*recipes, *imported], pantry))
-            render_results(grouped)
+            query = st.text_input(
+                cp.FIND_IN_BOOK,
+                placeholder=cp.FIND_IN_BOOK_PLACEHOLDER,
+                key="find_in_book",
+            )
+            matched = filter_matches(match_all([*recipes, *imported], pantry), query)
+            if query.strip() and not matched:
+                st.subheader(cp.RESULTS_HEADER)
+                st.info(cp.FIND_IN_BOOK_EMPTY)
+            else:
+                render_results(group_by_status(matched))
 
     page_shell(body)
 

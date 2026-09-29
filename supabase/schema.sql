@@ -4,4 +4,4 @@
 --   supabase_pantry.sql
 --   supabase_shopping.sql
 --
--- All use permissive anon policies. That is demo-grade only.
+-- All three use permissive anon policies. That is demo-grade only.

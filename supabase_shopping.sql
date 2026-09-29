@@ -1,7 +1,7 @@
--- Cain's Pantry shopping list. Run supabase_profiles.sql first.
+-- Cain's Pantry shopping list. Run supabase_profiles.sql, then supabase_pantry.sql, first.
 --
 -- Demo-grade security. Any client using the anon key can read and write
--- every shopping-list row. Fine for a local demo, not for production.
+-- every shopping row. Fine for a local demo, not for production.
 
 create table if not exists public.shopping_list_items (
   id uuid primary key default gen_random_uuid(),

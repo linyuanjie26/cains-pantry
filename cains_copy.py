@@ -19,6 +19,9 @@ EMPTY_PANTRY_HINT = "Add a few staples to see what you can cook."
 TRY_DEMO = "Try Eggs, Milk, And Flour"
 
 # Results
+FIND_IN_BOOK = "Find In Book"
+FIND_IN_BOOK_PLACEHOLDER = "Title, Tag, Or Ingredient"
+FIND_IN_BOOK_EMPTY = "Nothing In The Book Matches That."
 RESULTS_HEADER = "Recipes"
 SECTION_READY = "Ready"
 SECTION_ALMOST = "Almost"
@@ -37,7 +40,7 @@ BADGE_NEED_MORE = "Need More"
 
 # Account. Sign-in stays quiet until Supabase secrets exist.
 ACCOUNT_HEADER = "Account"
-LOCAL_MODE = "Login is optional. This browser session holds the pantry until Supabase secrets are set."
+LOCAL_MODE = "Login is optional. This browser session holds the pantry and shopping list until Supabase secrets are set."
 EMAIL_LABEL = "Email"
 PASSWORD_LABEL = "Password"
 SIGN_IN = "Sign In"
