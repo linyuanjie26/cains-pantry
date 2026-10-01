@@ -250,6 +250,7 @@ def render_recipe_card(match: MatchResult, *, nest_steps: bool = False) -> None:
             <p class="cp-card-title">{html.escape(recipe.title)}</p>
             {badge}
           </div>
+          {f'<div class="cp-meta">{html.escape(cp.FROM_THE_WEB)}</div>' if "from-the-web" in recipe.tags else ""}
           <div class="cp-meta">{html.escape(cp.ON_HAND_FMT.format(have=have_n, total=total))}</div>
           {missing_html}
           {optional_html}
@@ -365,8 +366,24 @@ def _remember_web(recipe: Recipe) -> None:
     st.session_state.web_notice = ("ok", template.format(title=recipe.title))
 
 
+# Cain's own cards always render. The web catalog is capped so a few hundred
+# dishes do not build a widget for every row. Find In Book reaches the rest.
+_WEB_PREVIEW = 24
+
+
+def _cards_to_show(items: list) -> tuple[list, int]:
+    catalog = [match for match in items if "web-catalog" in match.recipe.tags]
+    shown_catalog = catalog[:_WEB_PREVIEW]
+    hidden = len(catalog) - len(shown_catalog)
+    shown_ids = {match.recipe.id for match in items if "web-catalog" not in match.recipe.tags}
+    shown_ids.update(match.recipe.id for match in shown_catalog)
+    shown = [match for match in items if match.recipe.id in shown_ids]
+    return shown, hidden
+
+
 def render_results(groups: dict[str, list]) -> None:
     st.subheader(cp.RESULTS_HEADER)
+    st.caption(cp.CATALOG_NOTE)
     order = [READY, ALMOST, NEED_MORE]
     labels = {
         READY: cp.SECTION_READY,
@@ -383,17 +400,22 @@ def render_results(groups: dict[str, list]) -> None:
             continue
         any_cards = True
         header = f"{labels[status]} ({len(items)})"
+        shown, hidden = _cards_to_show(items)
         if status == NEED_MORE and fold_need_more:
             with st.expander(header, expanded=False):
-                for match in items:
+                for match in shown:
                     render_recipe_card(match, nest_steps=True)
+                if hidden:
+                    st.caption(cp.CATALOG_MORE.format(count=hidden))
             continue
         st.markdown(
             f'<div class="cp-section-label">{html.escape(header)}</div>',
             unsafe_allow_html=True,
         )
-        for match in items:
+        for match in shown:
             render_recipe_card(match)
+        if hidden:
+            st.caption(cp.CATALOG_MORE.format(count=hidden))
 
     if not any_cards:
         st.info(f"**{cp.NO_RECIPES}**  \n{cp.NO_MATCHES_HINT}")

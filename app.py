@@ -22,7 +22,7 @@ from ui import (
     render_shopping_panel,
     render_web_import,
 )
-from web_recipes import recipes_from_records
+from web_recipes import catalog_recipes, merge_recipes, recipes_from_records, start_catalog_refresh
 
 _RECIPE_PATH = Path(__file__).resolve().with_name("recipes.json")
 
@@ -63,6 +63,8 @@ def main() -> None:
             return
 
         imported = recipes_from_records(st.session_state.get("web_recipes"))
+        book = merge_recipes(recipes, catalog_recipes(), imported)
+        start_catalog_refresh()
         left, right = st.columns([1, 2], gap="large")
         with left:
             pantry = render_pantry_panel()
@@ -74,7 +76,7 @@ def main() -> None:
                 placeholder=cp.FIND_IN_BOOK_PLACEHOLDER,
                 key="find_in_book",
             )
-            matched = filter_matches(match_all([*recipes, *imported], pantry), query)
+            matched = filter_matches(match_all(book, pantry), query)
             if query.strip() and not matched:
                 st.subheader(cp.RESULTS_HEADER)
                 st.info(cp.FIND_IN_BOOK_EMPTY)

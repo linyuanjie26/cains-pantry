@@ -148,7 +148,7 @@ class FindInBookAppTests(unittest.TestCase):
         self.assertIn("Simple Pancakes", blob)
         self.assertNotIn("Cain's Toast Hash", blob)
         self.assertIn("cp-badge-ready", blob)
-        self.assertNotIn("cp-badge-need", blob)
+        self.assertIn("From The Web", blob)
 
         app.text_input(key="find_in_book").set_value("   ").run()
         self.assertFalse(app.exception)

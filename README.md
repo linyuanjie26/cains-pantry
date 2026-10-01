@@ -25,7 +25,7 @@ The pantry starts empty. Chips keep the casing you type. Two checks:
 
 1. **Try Eggs, Milk, And Flour**, or add `eggs, milk, flour`. **Simple Pancakes** should sit in **Ready** at the top. Open **Cook This** for the method.
 2. For the full starter bag, paste `starter_pantry` from `recipes.json` (`onion, garlic, eggs, pasta, rice, canned tomatoes, chickpeas, black beans, olive oil, salt, butter, bread, potato, cheese, cumin, black pepper`). **Cain's Toast Hash** is **Ready**. Other recipes land in **Almost** or a collapsed **Need More**.
-3. Open **Add From Web**. Search `Arrabiata` and add **Spicy Arrabiata Penne**, or paste a recipe page URL and choose **Import**. The new dish joins the same Ready / Almost / Need More list. No API key. Imported recipes stay in this browser session.
+3. A fresh session already ranks a large **From The Web** catalog with Cain's recipes. You do not need to search first. **Find In Book** narrows that list. **Add From Web** still adds a link or a TheMealDB search on top of the catalog.
 
 ```bash
 python3 matching.py
@@ -40,7 +40,8 @@ That prints the same ranking from the starter pantry. The first line should be R
 | `app.py` | Streamlit entry. Two columns: pantry, then ranked recipes. |
 | `matching.py` | Alias map and Ready / Almost / Need More. `python3 matching.py` prints the starter ranking. |
 | `recipes.json` | Seed recipes plus `starter_pantry`, including Simple Pancakes. |
-| `web_recipes.py` | Import a recipe URL, or search TheMealDB. Same recipe shape as the seed book. |
+| `data/web_catalog.json` | Bundled TheMealDB catalog. No API key. Loaded with the seed book. |
+| `web_recipes.py` | Catalog load, recipe URL import, and TheMealDB search. |
 | `docs/matching-spec.md` | Rank rules. |
 | `cains_copy.py` | Title Case labels. Not named `copy.py`, so it does not shadow the Python stdlib. |
 | `theme.css` | Cream, charcoal, and blood-orange. |
@@ -86,7 +87,7 @@ Open **Account**, choose **Create Account**, then add ingredients. Pantry rows l
 
 ## Roadmap
 
-**Done in this app.** Session pantry, alias matching, themed Ready / Almost / Need More sections, an optional Supabase profile plus `pantry_items` and `shopping_list_items`, free web recipes (page URL via `recipe-scrapers`, plus TheMealDB search), and a shopping list that syncs when signed in.
+**Done in this app.** Session pantry, alias matching, themed Ready / Almost / Need More sections, an optional Supabase profile plus `pantry_items` and `shopping_list_items`, a bundled TheMealDB catalog, free URL import and search, and a shopping list.
 
 ## Shopping list
 
@@ -96,9 +97,24 @@ Open **Account**, choose **Create Account**, then add ingredients. Pantry rows l
 - On an **Almost** or **Need More** card, **Add Missing To List** adds that recipe's required gaps. Optional ingredients stay off the list.
 - **Got It** removes the row and adds it to the pantry. **×** removes it only. **Clear List** empties the list after a confirm.
 
+
+## Recipe catalog
+
+A new session ranks Cain's recipes together with `data/web_catalog.json`. That file is a snapshot of [TheMealDB](https://www.themealdb.com/) meals whose names start with a–z (`search.php?f=a` through `f=z`). No API key. The app reads the file first, so the list is there offline.
+
+Each catalog card is labeled **From The Web**. The group heading shows the full count. The page draws Cain's recipes plus a short preview of the catalog so the browser stays usable. **Find In Book** reaches the rest.
+
+While the app is running it may refresh TheMealDB in the background and add meals that were not in the file. That refresh does not remove Cain's recipes or anything you imported in this session.
+
+Rebuild the snapshot with:
+
+```bash
+python -c "from web_recipes import write_bundled_catalog; print(write_bundled_catalog())"
+```
+
 ## Add from the web
 
-**Add From Web** sits above the ranked list.
+**Add From Web** sits above the ranked list and adds to the catalog. It does not replace it.
 
 - **Recipe URL** then **Import**. The page is read with `recipe-scrapers`, and schema.org Recipe data is the fallback. A bad link, an unsupported page, or a network failure shows a short message.
 - **Search Dishes** then **Search**. That calls TheMealDB (`themealdb.com`) with no API key. Pick a result to add it.
