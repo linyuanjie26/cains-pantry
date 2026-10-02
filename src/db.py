@@ -1,12 +1,15 @@
-"""Supabase PostgREST access for profiles, pantry, and shopping list.
+"""Supabase PostgREST access for profiles, pantry, shopping, and imports.
 
 Passwords are bcrypt hashes on `profiles`. The anon key is enough for the
 demo policies in supabase_profiles.sql, supabase_pantry.sql, and
 supabase_shopping.sql. Those policies are permissive on purpose: do not use
 them for real accounts.
 
-When secrets are missing, callers should keep pantry and shopping list in
-session state.
+imported_recipes is stricter. Each request sends the signed-in profile id in
+the X-Profile-Id header, and supabase_imported_recipes.sql only allows rows
+with that user_id.
+
+When secrets are missing, callers should keep lists in session state.
 """
 
 from __future__ import annotations
@@ -15,6 +18,9 @@ from typing import Any
 
 import bcrypt
 import requests
+
+_PROFILE_HEADER = "X-Profile-Id"
+_SOURCE_KINDS = {"mealdb", "url", "manual"}
 
 _PLACEHOLDER_BITS = (
     "your-project",
@@ -150,19 +156,110 @@ class PantryDB:
     def clear_shopping(self, user_id: str) -> None:
         self._delete("shopping_list_items", {"user_id": f"eq.{user_id}"})
 
-    def _get(self, table: str, params: dict[str, str]) -> list[dict[str, Any]]:
+    def list_imported_recipes(self, user_id: str) -> list[dict[str, Any]]:
+        rows = self._get(
+            "imported_recipes",
+            {
+                "user_id": f"eq.{user_id}",
+                "select": (
+                    "external_id,title,ingredients,optional_ingredients,"
+                    "tags,source_url,source_kind,instructions"
+                ),
+                "order": "created_at.asc",
+            },
+            headers=self._profile_headers(user_id),
+        )
+        recipes: list[dict[str, Any]] = []
+        for row in rows:
+            recipe_id = str(row.get("external_id") or "").strip()
+            title = str(row.get("title") or "").strip()
+            if not recipe_id or not title:
+                continue
+            recipes.append(
+                {
+                    "id": recipe_id,
+                    "title": title,
+                    "ingredients": _text_list(row.get("ingredients")),
+                    "optional": _text_list(row.get("optional_ingredients")),
+                    "tags": _text_list(row.get("tags")),
+                    "steps": str(row.get("instructions") or ""),
+                    "source_url": str(row.get("source_url") or ""),
+                    "source_kind": str(row.get("source_kind") or ""),
+                }
+            )
+        return recipes
+
+    def save_imported_recipe(self, user_id: str, record: dict[str, Any]) -> None:
+        kind = str(record.get("source_kind") or "").strip().lower()
+        if kind not in _SOURCE_KINDS:
+            kind = "manual"
+        instructions = str(record.get("steps") or "").strip()
+        source_url = str(record.get("source_url") or "").strip()
+        payload: dict[str, Any] = {
+            "user_id": user_id,
+            "external_id": str(record["id"]),
+            "title": str(record["title"]),
+            "ingredients": list(record.get("ingredients") or []),
+            "optional_ingredients": list(record.get("optional") or []),
+            "tags": list(record.get("tags") or []),
+            "source_url": source_url or None,
+            "source_kind": kind,
+            "instructions": instructions or None,
+        }
+        self._upsert(
+            "imported_recipes",
+            payload,
+            on_conflict="user_id,external_id",
+            user_id=user_id,
+        )
+
+    def _profile_headers(self, user_id: str, extra: dict[str, str] | None = None) -> dict[str, str]:
+        headers = {**self.headers, _PROFILE_HEADER: user_id}
+        if extra:
+            headers.update(extra)
+        return headers
+
+    def _get(
+        self,
+        table: str,
+        params: dict[str, str],
+        headers: dict[str, str] | None = None,
+    ) -> list[dict[str, Any]]:
         response = self.session.get(
             f"{self.base}/{table}",
             params=params,
-            headers=self.headers,
+            headers=headers or self.headers,
             timeout=8,
         )
         return self._rows(response)
 
-    def _post(self, table: str, payload: dict[str, str]) -> list[dict[str, Any]]:
+    def _post(self, table: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
         headers = {**self.headers, "Prefer": "return=representation"}
         response = self.session.post(
             f"{self.base}/{table}",
+            json=payload,
+            headers=headers,
+            timeout=8,
+        )
+        if response.status_code == 409:
+            return []
+        return self._rows(response)
+
+    def _upsert(
+        self,
+        table: str,
+        payload: dict[str, Any],
+        *,
+        on_conflict: str,
+        user_id: str,
+    ) -> list[dict[str, Any]]:
+        headers = self._profile_headers(
+            user_id,
+            {"Prefer": "resolution=merge-duplicates,return=representation"},
+        )
+        response = self.session.post(
+            f"{self.base}/{table}",
+            params={"on_conflict": on_conflict},
             json=payload,
             headers=headers,
             timeout=8,
@@ -198,3 +295,14 @@ class PantryDB:
         except Exception:
             pass
         raise RuntimeError(message[:180])
+
+
+def _text_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []

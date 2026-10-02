@@ -3,5 +3,8 @@
 --   supabase_profiles.sql
 --   supabase_pantry.sql
 --   supabase_shopping.sql
+--   supabase_imported_recipes.sql
 --
--- All three use permissive anon policies. That is demo-grade only.
+-- Profiles, pantry, and shopping use permissive anon policies. That is
+-- demo-grade only. imported_recipes is separate from any shared catalog
+-- and allows a row only when user_id matches the x-profile-id header.

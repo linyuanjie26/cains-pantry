@@ -279,7 +279,7 @@ def render_recipe_card(match: MatchResult, *, nest_steps: bool = False) -> None:
 
 
 def render_web_import() -> None:
-    """URL import and TheMealDB search. Recipes stay in this browser session."""
+    """URL import and TheMealDB search. Signed-in imports also go to Supabase."""
     with st.expander(cp.WEB_HEADER, expanded=False):
         st.caption(cp.WEB_HINT)
         with st.form("web_url_form", clear_on_submit=False):
@@ -329,14 +329,7 @@ def render_web_import() -> None:
 
         for hit in st.session_state.get("web_hits") or []:
             if st.button(f"Add {hit['title']}", key=f"web-add-{hit['id']}", use_container_width=True):
-                _remember_web(Recipe(
-                    id=hit["id"],
-                    title=hit["title"],
-                    ingredients=tuple(hit["ingredients"]),
-                    optional=tuple(hit.get("optional") or ()),
-                    tags=tuple(hit.get("tags") or ()),
-                    steps=hit.get("steps") or "",
-                ))
+                _remember_record(hit)
                 st.rerun()
 
 
@@ -351,19 +344,17 @@ def _accept_web(load: Callable[[], Recipe]) -> None:
 
 
 def _remember_web(recipe: Recipe) -> None:
-    rows = list(st.session_state.get("web_recipes") or [])
-    record = recipe_record(recipe)
-    replaced = False
-    for index, row in enumerate(rows):
-        if row.get("id") == record["id"]:
-            rows[index] = record
-            replaced = True
-            break
-    if not replaced:
-        rows.append(record)
-    st.session_state.web_recipes = rows
+    _remember_record(recipe_record(recipe))
+
+
+def _remember_record(record: dict) -> None:
+    replaced, problem = store.remember_imported_recipe(record)
+    if problem:
+        st.session_state.web_notice = ("warn", problem)
+        return
     template = cp.WEB_UPDATED if replaced else cp.WEB_ADDED
-    st.session_state.web_notice = ("ok", template.format(title=recipe.title))
+    title = str(record.get("title") or "Recipe")
+    st.session_state.web_notice = ("ok", template.format(title=title))
 
 
 # Cain's own cards always render. The web catalog is capped so a few hundred

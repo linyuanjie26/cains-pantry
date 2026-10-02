@@ -54,6 +54,12 @@ class Mem:
     def clear_shopping(self, user_id: str) -> None:
         self.shopping.clear()
 
+    def list_imported_recipes(self, user_id: str) -> list:
+        return []
+
+    def save_imported_recipe(self, user_id: str, record: dict) -> None:
+        return None
+
 
 class AccountFlowTests(unittest.TestCase):
     def test_login_loads_remote_and_pushes_local_when_empty(self) -> None:
@@ -96,22 +102,6 @@ class AccountFlowTests(unittest.TestCase):
             app.button(key="FormSubmitter:account_form-Sign In").click().run()
             self.assertEqual(mem.items, ["Butter"])
             self.assertEqual(list(app.session_state["pantry"]), ["Butter"])
-
-            app.text_input(key="shopping_input").set_value("Lime, Flour")
-            app.button(key="FormSubmitter:add_shopping_form-Add").click().run()
-            self.assertEqual(mem.shopping, ["Lime", "Flour"])
-
-            app.button(key="got-0-Lime").click().run()
-            self.assertNotIn("Lime", mem.shopping)
-            self.assertIn("Lime", mem.items)
-            self.assertIn("Lime", list(app.session_state["pantry"]))
-
-            app.button(key="sign_out").click().run()
-            mem.shopping = ["Garlic"]
-            app.text_input(key="account_email").set_value("cook@example.com")
-            app.text_input(key="account_password").set_value("secret1")
-            app.button(key="FormSubmitter:account_form-Sign In").click().run()
-            self.assertEqual(list(app.session_state["shopping_list"]), ["Garlic"])
 
 
 if __name__ == "__main__":

@@ -1,17 +1,20 @@
-"""Pantry and shopping-list persistence.
+"""Pantry persistence.
 
 Session state is always the list the UI reads. When Streamlit secrets include
-SUPABASE_URL and SUPABASE_ANON_KEY, sign-in loads and saves pantry_items and
-shopping_list_items. Missing secrets leave login optional and keep both lists
-in the current browser session.
+SUPABASE_URL and SUPABASE_ANON_KEY, sign-in loads and saves pantry_items,
+shopping_list_items, and imported_recipes. Missing secrets leave login optional
+and keep those lists in the current session.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import streamlit as st
 
 import cains_copy as cp
 from src.db import PantryDB, get_config
+from web_recipes import source_kind_for
 
 _USER_KEY = "cp_user"
 
@@ -92,7 +95,7 @@ def clear() -> None:
 
 
 def shopping_list() -> list[str]:
-    """Buy list. Syncs to shopping_list_items when signed in with secrets."""
+    """Buy list. Session state, plus shopping_list_items when signed in."""
     if "shopping_list" not in st.session_state:
         st.session_state.shopping_list = []
         _hydrate_shopping_once()
@@ -115,7 +118,7 @@ def add_to_shopping_list(raw: str | list[str]) -> None:
             continue
         items.append(item)
         added.append(item)
-        _remote_insert_shopping(item)
+        _remote_shop_insert(item)
 
     if added and already:
         st.session_state.shop_notice = (
@@ -133,14 +136,46 @@ def remove_from_shopping_list(item: str, *, quiet: bool = False) -> None:
     st.session_state.shopping_list = [
         name for name in shopping_list() if name.casefold() != key
     ]
-    _remote_delete_shopping(item)
+    _remote_shop_delete(item)
     if not quiet:
         st.session_state.shop_notice = ("info", cp.SHOP_REMOVED.format(item=item))
 
 
+def web_recipes() -> list[dict[str, Any]]:
+    """Imported recipes. Session state, plus imported_recipes when signed in."""
+    if "web_recipes" not in st.session_state:
+        st.session_state.web_recipes = []
+        _hydrate_recipes_once()
+    rows = st.session_state.web_recipes
+    if not isinstance(rows, list):
+        st.session_state.web_recipes = []
+    return st.session_state.web_recipes
+
+
+def remember_imported_recipe(record: dict[str, Any]) -> tuple[bool, str | None]:
+    """Keep one import in the session and, when signed in, in Supabase.
+
+    Returns whether an existing id was replaced, and a short cloud warning.
+    """
+    clean = _clean_imported(record)
+    if clean is None:
+        return False, "This site did not share a recipe we could read."
+    rows = [row for row in web_recipes() if isinstance(row, dict)]
+    replaced = False
+    for index, row in enumerate(rows):
+        if row.get("id") == clean["id"]:
+            rows[index] = clean
+            replaced = True
+            break
+    if not replaced:
+        rows.append(clean)
+    st.session_state.web_recipes = rows
+    return replaced, _remote_recipe_save(clean)
+
+
 def clear_shopping_list() -> None:
     st.session_state.shopping_list = []
-    _remote_clear_shopping()
+    _remote_shop_clear()
     st.session_state.shop_notice = ("info", cp.SHOP_CLEARED)
 
 
@@ -154,7 +189,9 @@ def mark_bought(item: str) -> None:
     if not any(existing.casefold() == name.casefold() for existing in items):
         items.append(name)
         _remote_insert(name)
-    st.session_state.shop_notice = ("ok", cp.SHOP_BOUGHT.format(item=name))
+    current = st.session_state.get("shop_notice")
+    if not (isinstance(current, tuple) and current and current[0] == "warn"):
+        st.session_state.shop_notice = ("ok", cp.SHOP_BOUGHT.format(item=name))
 
 
 def _shopping_names(raw: str | list[str]) -> list[str]:
@@ -188,6 +225,7 @@ def sign_in(email: str, password: str) -> str | None:
     _remember(user)
     _adopt_remote_pantry()
     _adopt_remote_shopping()
+    _adopt_remote_recipes()
     return None
 
 
@@ -207,6 +245,7 @@ def sign_up(email: str, password: str) -> str | None:
     _remember(user)
     _adopt_remote_pantry()
     _adopt_remote_shopping()
+    _adopt_remote_recipes()
     return None
 
 
@@ -252,6 +291,46 @@ def _adopt_remote_pantry() -> None:
     st.session_state.pantry = local
     for name in local:
         _remote_insert(name)
+
+
+def _hydrate_shopping_once() -> None:
+    if not signed_in_email():
+        return
+    remote = _fetch_shopping()
+    if remote is not None:
+        st.session_state.shopping_list = remote
+
+
+def _adopt_remote_shopping() -> None:
+    remote = _fetch_shopping()
+    local = list(st.session_state.get("shopping_list") or [])
+    if remote:
+        st.session_state.shopping_list = remote
+        return
+    st.session_state.shopping_list = local
+    for name in local:
+        _remote_shop_insert(name)
+
+
+def _hydrate_recipes_once() -> None:
+    if not signed_in_email():
+        return
+    remote = _fetch_recipes()
+    if remote is not None:
+        st.session_state.web_recipes = remote
+
+
+def _adopt_remote_recipes() -> None:
+    remote = _fetch_recipes()
+    local = [row for row in (st.session_state.get("web_recipes") or []) if isinstance(row, dict)]
+    if remote is None:
+        return
+    if remote:
+        st.session_state.web_recipes = remote
+        return
+    st.session_state.web_recipes = local
+    for record in local:
+        _remote_recipe_save(record)
 
 
 def _remember(user: dict[str, str]) -> None:
@@ -326,26 +405,7 @@ def _remote_clear() -> None:
         st.session_state.notice = ("warn", "Cleared here. Cloud pantry did not update.")
 
 
-def _hydrate_shopping_once() -> None:
-    if not signed_in_email():
-        return
-    remote = _fetch_shopping_names()
-    if remote is not None:
-        st.session_state.shopping_list = remote
-
-
-def _adopt_remote_shopping() -> None:
-    remote = _fetch_shopping_names()
-    local = list(st.session_state.get("shopping_list") or [])
-    if remote:
-        st.session_state.shopping_list = remote
-        return
-    st.session_state.shopping_list = local
-    for name in local:
-        _remote_insert_shopping(name)
-
-
-def _fetch_shopping_names() -> list[str] | None:
+def _fetch_shopping() -> list[str] | None:
     db = _db()
     user_id = _user_id()
     if db is None or not user_id:
@@ -357,7 +417,7 @@ def _fetch_shopping_names() -> list[str] | None:
         return None
 
 
-def _remote_insert_shopping(name: str) -> None:
+def _remote_shop_insert(name: str) -> None:
     db = _db()
     user_id = _user_id()
     if db is None or not user_id:
@@ -374,7 +434,7 @@ def _remote_insert_shopping(name: str) -> None:
         )
 
 
-def _remote_delete_shopping(name: str) -> None:
+def _remote_shop_delete(name: str) -> None:
     db = _db()
     user_id = _user_id()
     if db is None or not user_id:
@@ -388,7 +448,77 @@ def _remote_delete_shopping(name: str) -> None:
         )
 
 
-def _remote_clear_shopping() -> None:
+def _fetch_recipes() -> list[dict[str, Any]] | None:
+    db = _db()
+    user_id = _user_id()
+    if db is None or not user_id:
+        return None
+    try:
+        return db.list_imported_recipes(user_id)
+    except Exception as exc:
+        st.session_state.web_notice = ("warn", _short_error(exc))
+        return None
+
+
+def _remote_recipe_save(record: dict[str, Any]) -> str | None:
+    db = _db()
+    user_id = _user_id()
+    if db is None or not user_id:
+        return None
+    try:
+        db.save_imported_recipe(user_id, record)
+    except Exception as exc:
+        text = str(exc).lower()
+        if "duplicate" in text or "23505" in text:
+            return None
+        return "Saved in this session. Cloud recipe book did not update."
+    return None
+
+
+def _clean_imported(record: dict[str, Any]) -> dict[str, Any] | None:
+    title = " ".join(str(record.get("title") or "").split())
+    ingredients: list[str] = []
+    seen: set[str] = set()
+    for raw in record.get("ingredients") or []:
+        name = " ".join(str(raw).split())
+        key = name.casefold()
+        if not name or key in seen:
+            continue
+        seen.add(key)
+        ingredients.append(name)
+    if not title or not ingredients:
+        return None
+    recipe_id = str(record.get("id") or "").strip() or title
+    optional: list[str] = []
+    opt_seen: set[str] = set()
+    for raw in record.get("optional") or []:
+        name = " ".join(str(raw).split())
+        key = name.casefold()
+        if not name or key in seen or key in opt_seen:
+            continue
+        opt_seen.add(key)
+        optional.append(name)
+    tags: list[str] = []
+    tag_seen: set[str] = set()
+    for raw in record.get("tags") or []:
+        tag = str(raw).strip()
+        if not tag or tag.casefold() in tag_seen:
+            continue
+        tag_seen.add(tag.casefold())
+        tags.append(tag)
+    return {
+        "id": recipe_id,
+        "title": title,
+        "ingredients": ingredients,
+        "optional": optional,
+        "tags": tags,
+        "steps": str(record.get("steps") or ""),
+        "source_url": str(record.get("source_url") or "").strip(),
+        "source_kind": source_kind_for(recipe_id, str(record.get("source_kind") or "")),
+    }
+
+
+def _remote_shop_clear() -> None:
     db = _db()
     user_id = _user_id()
     if db is None or not user_id:

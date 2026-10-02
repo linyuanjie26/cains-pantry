@@ -12,6 +12,7 @@ from pathlib import Path
 import streamlit as st
 
 import cains_copy as cp
+import store
 from book_filter import filter_matches
 from matching import Recipe, group_by_status, match_all
 from ui import (
@@ -62,7 +63,7 @@ def main() -> None:
             st.caption(str(exc))
             return
 
-        imported = recipes_from_records(st.session_state.get("web_recipes"))
+        imported = recipes_from_records(store.web_recipes())
         book = merge_recipes(recipes, catalog_recipes(), imported)
         start_catalog_refresh()
         left, right = st.columns([1, 2], gap="large")

@@ -13,6 +13,7 @@ from web_recipes import (
     meal_to_recipe,
     names_from_line,
     parse_html,
+    recipe_record,
     search_meals,
 )
 
@@ -62,6 +63,9 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(recipe.title, "Web Pancakes")
         self.assertEqual(recipe.ingredients, ("flour", "milk", "eggs"))
         self.assertEqual(recipe.optional, ("salt",))
+        row = recipe_record(recipe)
+        self.assertEqual(row["source_kind"], "url")
+        self.assertEqual(row["source_url"], "https://example.com/pancakes")
         ranked = match_all([recipe], ["eggs", "milk", "flour"])
         self.assertEqual(ranked[0].status, READY)
         self.assertEqual(ranked[0].missing, [])
@@ -101,6 +105,9 @@ class MealDbTests(unittest.TestCase):
         self.assertIn("chili flakes", recipe.ingredients)
         self.assertIn("parmesan", recipe.ingredients)
         self.assertTrue(recipe.id.startswith("mealdb-"))
+        row = recipe_record(recipe)
+        self.assertEqual(row["source_kind"], "mealdb")
+        self.assertEqual(row["source_url"], "https://www.themealdb.com/meal/52771")
         ranked = match_all([recipe], ["garlic", "olive oil", "pasta"])
         self.assertEqual(len(ranked), 1)
         self.assertIn(ranked[0].status, {"Ready", "Almost", "Need More"})

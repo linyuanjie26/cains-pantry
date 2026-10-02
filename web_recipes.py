@@ -1,8 +1,8 @@
 """Import recipes from a page URL or a free TheMealDB search.
 
 Results use the same Recipe shape as recipes.json. Matching rules stay in
-matching.py. Nothing here needs an API key. Imported recipes live in the
-browser session unless the caller stores them.
+matching.py. Nothing here needs an API key. The app stores imports in the
+browser session, and in imported_recipes when someone is signed in.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import re
 import string
 import sys
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
@@ -20,6 +21,8 @@ from urllib.parse import urlparse
 import requests
 
 from matching import ALIASES, Recipe, canonical, normalize
+
+_SOURCE_KINDS = {"mealdb", "url", "manual"}
 
 MEALDB_SEARCH = "https://www.themealdb.com/api/json/v1/1/search.php"
 CATALOG_PATH = Path(__file__).resolve().parent / "data" / "web_catalog.json"
@@ -51,14 +54,39 @@ class WebRecipeError(Exception):
     """A short message safe to show in the UI."""
 
 
+@dataclass(frozen=True)
+class SourcedRecipe(Recipe):
+    """Recipe plus where the import came from. Matching ignores these fields."""
+
+    source_url: str = ""
+    source_kind: str = ""
+
+
+def source_kind_for(recipe_id: str, explicit: str = "") -> str:
+    kind = " ".join((explicit or "").split()).lower()
+    if kind in _SOURCE_KINDS:
+        return kind
+    if recipe_id.startswith("mealdb-"):
+        return "mealdb"
+    if recipe_id.startswith("web-"):
+        return "url"
+    return "manual"
+
+
 def recipe_record(recipe: Recipe) -> dict[str, Any]:
+    recipe_id = recipe.id
     return {
-        "id": recipe.id,
+        "id": recipe_id,
         "title": recipe.title,
         "ingredients": list(recipe.ingredients),
         "optional": list(recipe.optional),
         "tags": list(recipe.tags),
         "steps": recipe.steps,
+        "source_url": str(getattr(recipe, "source_url", "") or ""),
+        "source_kind": source_kind_for(
+            recipe_id,
+            str(getattr(recipe, "source_kind", "") or ""),
+        ),
     }
 
 
@@ -141,18 +169,30 @@ def meal_to_recipe(meal: dict[str, Any]) -> Recipe:
         if not ingredient:
             continue
         raw.append(f"{measure} {ingredient}".strip())
-    source = str(meal.get("idMeal") or title)
-    recipe = build_recipe(title, raw, str(meal.get("strInstructions") or ""), source, "mealdb")
+    meal_id = str(meal.get("idMeal") or "").strip()
+    source = meal_id or title
+    source_url = f"https://www.themealdb.com/meal/{meal_id}" if meal_id else ""
+    recipe = build_recipe(
+        title,
+        raw,
+        str(meal.get("strInstructions") or ""),
+        source,
+        "mealdb",
+        source_url=source_url,
+        source_kind="mealdb",
+    )
     category = str(meal.get("strCategory") or "").strip().casefold().replace(" ", "-")
     if not category:
         return recipe
-    return Recipe(
+    return SourcedRecipe(
         id=recipe.id,
         title=recipe.title,
         ingredients=recipe.ingredients,
         optional=recipe.optional,
         tags=(*recipe.tags, category),
         steps=recipe.steps,
+        source_url=str(getattr(recipe, "source_url", "") or ""),
+        source_kind=str(getattr(recipe, "source_kind", "") or "mealdb"),
     )
 
 
@@ -184,6 +224,9 @@ def build_recipe(
     steps: str,
     source: str,
     prefix: str,
+    *,
+    source_url: str = "",
+    source_kind: str = "",
 ) -> Recipe:
     required: list[str] = []
     optional: list[str] = []
@@ -199,13 +242,17 @@ def build_recipe(
     clean_title = " ".join((title or "").split())
     if not clean_title or not required:
         raise WebRecipeError("This site did not share a recipe we could read.")
-    return Recipe(
-        id=make_id(prefix, clean_title, source),
+    recipe_id = make_id(prefix, clean_title, source)
+    kind = source_kind if source_kind in _SOURCE_KINDS else source_kind_for(recipe_id)
+    return SourcedRecipe(
+        id=recipe_id,
         title=clean_title,
         ingredients=tuple(required),
         optional=tuple(optional),
         tags=("from-the-web",),
         steps=_clean_steps(steps),
+        source_url=" ".join((source_url or "").split()),
+        source_kind=kind,
     )
 
 
@@ -297,7 +344,15 @@ def _from_scraper(html: str, url: str) -> Recipe | None:
     if not title or not ingredients:
         return None
     try:
-        return build_recipe(title, ingredients, steps, url, "web")
+        return build_recipe(
+            title,
+            ingredients,
+            steps,
+            url,
+            "web",
+            source_url=url,
+            source_kind="url",
+        )
     except WebRecipeError:
         return None
 
@@ -312,7 +367,15 @@ def _from_json_ld(html: str, url: str) -> Recipe:
             raw = [raw]
         ingredients = [str(item) for item in raw]
         try:
-            return build_recipe(title, ingredients, _steps_text(node.get("recipeInstructions")), url, "web")
+            return build_recipe(
+                title,
+                ingredients,
+                _steps_text(node.get("recipeInstructions")),
+                url,
+                "web",
+                source_url=url,
+                source_kind="url",
+            )
         except WebRecipeError:
             continue
     raise WebRecipeError("This site did not share a recipe we could read.")

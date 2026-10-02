@@ -43,7 +43,7 @@ BADGE_NEED_MORE = "Need More"
 
 # Account. Sign-in stays quiet until Supabase secrets exist.
 ACCOUNT_HEADER = "Account"
-LOCAL_MODE = "Login is optional. This browser session holds the pantry and shopping list until Supabase secrets are set."
+LOCAL_MODE = "Login is optional. This browser session holds the pantry, shopping list, and imported recipes until Supabase secrets are set."
 EMAIL_LABEL = "Email"
 PASSWORD_LABEL = "Password"
 SIGN_IN = "Sign In"
@@ -53,7 +53,7 @@ SIGNED_IN = "Signed In As {email}"
 
 # Add From Web. Free sources only; no API key.
 WEB_HEADER = "Add From Web"
-WEB_HINT = "The book already includes a web catalog. Paste a link or search to add more. No API key."
+WEB_HINT = "The book already includes a web catalog. Paste a link or search to add more. No API key. Signed-in imports are saved to your account."
 WEB_URL_LABEL = "Recipe URL"
 WEB_URL_PLACEHOLDER = "https://…"
 WEB_IMPORT = "Import"
